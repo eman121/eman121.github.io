@@ -32,18 +32,21 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-  // Cache first for hashed build assets.
+  // Cache first for hashed build assets. A dropped download gets one retry: a part of the app
+  // that fails to download stays broken until the page reloads.
   e.respondWith(
     caches.match(req).then(
       (hit) =>
         hit ||
-        fetch(req).then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        }),
+        fetch(req)
+          .catch(() => new Promise((ok) => setTimeout(ok, 500)).then(() => fetch(req)))
+          .then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy));
+            }
+            return res;
+          }),
     ),
   );
 });
